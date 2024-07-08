@@ -7,6 +7,8 @@ const { Chess } = require("chess.js");
 const app = express();
 app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+app.use(express.urlencoded({extended: true}));
 
 const server = http.createServer(app);
 const io = socket(server);
@@ -14,22 +16,13 @@ const io = socket(server);
 const chess = new Chess();
 
 let players = {};
-let currentPlayer = "W";
+let currentPlayer = "w";
 
 app.get("/", (req, res) => {
-  res.render("index", {title: "Chess Game"}); 
+  res.render("index", {title: "Chess Game"});
 });
 
 io.on("connection", (uniqueSocket) => {
-  console.log("connected");
-
-  uniqueSocket.on("churan", () => { // backend <<<<<-- frontend
-    io.emit("churan papadi"); // backend -->>>>> frontend
-  });
-
-  uniqueSocket.on("disconnect", () => {
-    console.log("disconnected");
-  });
 
   if(!players.white) {
     players.white = uniqueSocket.id;
@@ -61,13 +54,18 @@ io.on("connection", (uniqueSocket) => {
       if(result) {
         currentPlayer = chess.turn();
         io.emit("move", move)
+        io.emit("boardState", chess.fen());
+      }
+      else{
+        console.log("Invalid move");
+        uniqueSocket.emit("invalidMove", move);
       }
 
     } catch (err) {
       console.log("ERR (MOVE EVENT): " + err);
+      uniqueSocket.emit("Invalid move: ", move);
     }
   });
-
 });
 
 server.listen(3000);
